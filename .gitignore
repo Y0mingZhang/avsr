@@ -161,5 +161,7 @@ cython_debug/
 
 slurm*.out
 .vscode/
-avsr-offline/
+avsr/
+additive-avsr/
+voting-avsr/
 data_prep/face_detection/

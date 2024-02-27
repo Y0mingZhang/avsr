@@ -27,7 +27,6 @@ def get_trainer(args):
         lr_monitor,
     ]
 
-    grad_acc = max(32 // (args.num_nodes * args.gpus), 1)
     return Trainer(
         sync_batchnorm=True,
         default_root_dir=args.exp_dir,
@@ -39,20 +38,31 @@ def get_trainer(args):
         callbacks=callbacks,
         reload_dataloaders_every_n_epochs=1,
         gradient_clip_val=10.0,
-        accumulate_grad_batches=grad_acc,
     )
+from lightning_av import AVConformerRNNTModule, AdditiveAVConformerRNNTModule, VotingAVConformerRNNTModule
+from lightning import ConformerRNNTModule
+
+MODALITY_DEFAULT_ARCHS = {
+    "audio": ConformerRNNTModule,
+    "video": ConformerRNNTModule,
+    "audiovisual": AVConformerRNNTModule,
+}
+
+ARCHS = {
+    "conformer": ConformerRNNTModule,
+    "av-conformer": AVConformerRNNTModule,
+    "additive-av-conformer": AdditiveAVConformerRNNTModule,
+    "voting-av-conformer": VotingAVConformerRNNTModule,
+}
 
 
 def get_lightning_module(args):
     sp_model = spm.SentencePieceProcessor(model_file=str(args.sp_model_path))
-    if args.modality == "audiovisual":
-        from lightning_av import AVConformerRNNTModule
 
-        model = AVConformerRNNTModule(args, sp_model)
+    if not args.architecture:
+        model = MODALITY_DEFAULT_ARCHS[args.modality](args, sp_model)
     else:
-        from lightning import ConformerRNNTModule
-
-        model = ConformerRNNTModule(args, sp_model)
+        model = ARCHS[args.architecture](args, sp_model)
     return model
 
 
@@ -72,6 +82,13 @@ def parse_args():
         type=str,
         help="Perform online or offline recognition.",
         required=True,
+    )
+    parser.add_argument(
+        "--architecture",
+        type=str,
+        help="Perform online or offline recognition.",
+        default=None,
+        choices=ARCHS.keys()
     )
     parser.add_argument(
         "--root-dir",
@@ -143,6 +160,7 @@ def cli_main():
     args = parse_args()
     init_logger(args.debug)
     model = get_lightning_module(args)
+
     data_module = get_data_module(args, str(args.sp_model_path))
     trainer = get_trainer(args)
     trainer.fit(model, data_module)

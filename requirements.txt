@@ -1,0 +1,9 @@
+torchvision
+torchaudio
+pytorch-lightning
+sentencepiece
+tqdm
+scikit-image
+opencv-python
+ffmpeg-python
+av
